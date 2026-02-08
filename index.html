@@ -10,14 +10,14 @@
         body { font-family: -apple-system, sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; }
         .grid-view { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
         .ios-blur { background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        .selected-img { border: 4px solid #3b82f6; position: relative; opacity: 0.7; transform: scale(0.9); }
+        .selected-img { border: 4px solid #3b82f6; position: relative; opacity: 0.6; transform: scale(0.92); transition: 0.2s; }
         .selected-img::after { 
             content: "✓"; position: absolute; top: 10px; right: 10px;
-            background: #3b82f6; color: white; border-radius: 50%; width: 24px; height: 24px; 
-            display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; 
+            background: #3b82f6; color: white; border-radius: 50%; width: 22px; height: 22px; 
+            display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; 
         }
         #viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; }
-        #viewer-slider { display: flex; height: 100%; transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1); }
+        #viewer-slider { display: flex; height: 100%; transition: transform 0.2s ease-out; }
         .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         .slide img { max-width: 100%; max-height: 100%; object-fit: contain; }
         #move-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
@@ -52,16 +52,18 @@
             </div>
             <div class="flex gap-4 items-center">
                 <button id="select-mode-btn" onclick="toggleSelectMode()" class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">მონიშვნა</button>
-                <button onclick="openUploadWidget()" class="bg-blue-600 text-white w-8 h-8 rounded-full font-bold text-lg flex items-center justify-center">+</button>
+                <button onclick="openUploadWidget()" class="bg-blue-600 text-white w-8 h-8 rounded-full font-bold text-lg flex items-center justify-center active:scale-90 transition">+</button>
             </div>
         </header>
 
-        <div id="action-bar" class="hidden fixed bottom-24 left-5 right-5 h-16 ios-blur border border-zinc-800 rounded-2xl z-[100] flex items-center justify-around px-2 shadow-2xl">
-            <button onclick="selectAll()" class="text-zinc-400 text-[9px] font-bold uppercase tracking-tighter">ყველა</button>
+        <div id="action-bar" class="hidden fixed bottom-24 left-4 right-4 h-16 ios-blur border border-zinc-800 rounded-2xl z-[100] flex items-center justify-around px-2 shadow-2xl">
+            <button onclick="selectAll()" class="text-zinc-400 text-[9px] font-bold uppercase">ყველა</button>
             <div class="h-6 w-[1px] bg-zinc-800"></div>
-            <button onclick="deleteSelected()" class="text-red-500 text-[9px] font-bold uppercase tracking-tighter">წაშლა</button>
+            <button onclick="downloadSelected()" class="text-green-500 text-[9px] font-bold uppercase">გადმოწერა</button>
             <div class="h-6 w-[1px] bg-zinc-800"></div>
-            <button onclick="openMoveModal()" class="text-blue-500 text-[9px] font-bold uppercase tracking-tighter">გადატანა</button>
+            <button onclick="openMoveModal()" class="text-blue-500 text-[9px] font-bold uppercase">გადატანა</button>
+            <div class="h-6 w-[1px] bg-zinc-800"></div>
+            <button onclick="deleteSelected()" class="text-red-500 text-[9px] font-bold uppercase">წაშლა</button>
         </div>
 
         <main id="main-scroll" class="flex-1 overflow-y-auto pb-32">
@@ -69,7 +71,7 @@
             <div id="view-albums" class="hidden p-4">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xs font-bold text-zinc-500 uppercase tracking-widest">ალბომები</h2>
-                    <button onclick="addNewAlbum()" class="text-[10px] bg-zinc-900 text-white px-3 py-1.5 rounded-lg">+ ახალი</button>
+                    <button onclick="addNewAlbum()" class="text-[10px] bg-zinc-900 text-white px-3 py-1.5 rounded-lg active:scale-95 transition">+ ახალი</button>
                 </div>
                 <div id="albums-grid" class="grid grid-cols-2 gap-3"></div>
             </div>
@@ -95,7 +97,7 @@
         const UPLOAD_PRESET = "sastawe";
         const PASS = "გიჟურად";
         
-        let CURRENT_TAG = "shared_vault"; // დავაბრუნე საწყისი, რომ ფოტოები გამოჩნდეს
+        let CURRENT_TAG = "shared_vault";
         let allPhotos = [];
         let selectedPhotos = new Set();
         let isSelectMode = false;
@@ -113,7 +115,7 @@
             CURRENT_TAG = tag;
             document.getElementById('header-title').innerText = (tag === "shared_vault" || tag === "sastawe_main") ? "სასტაWE" : tag;
             const grid = document.getElementById('view-library');
-            grid.innerHTML = '<div class="col-span-3 text-center p-20 text-zinc-600 animate-pulse text-[10px] uppercase tracking-widest">იტვირთება...</div>';
+            grid.innerHTML = '<div class="col-span-3 text-center p-20 text-zinc-600 animate-pulse text-[10px] uppercase">იტვირთება...</div>';
             
             try {
                 const res = await fetch(`https://res.cloudinary.com/${CLOUD_NAME}/image/list/v${Date.now()}/${tag}.json`);
@@ -125,9 +127,7 @@
                 }));
                 renderGrid();
             } catch (e) {
-                // თუ ფოტოები ვერ იპოვა და ვართ მთავარ გვერდზე, ვცადოთ მეორე შესაძლო სახელით
                 if(tag === "shared_vault") { loadGallery("sastawe_main"); return; }
-                if(tag === "sastawe_main") { loadGallery("shared_vault"); return; }
                 grid.innerHTML = '<div class="col-span-3 text-center p-20 text-zinc-800 text-[10px] uppercase">ცარიელია</div>'; 
             }
         }
@@ -135,7 +135,7 @@
         function renderGrid() {
             const grid = document.getElementById('view-library');
             grid.innerHTML = allPhotos.map((img, i) => `
-                <div id="img-${i}" class="aspect-square bg-zinc-900 overflow-hidden relative" onclick="handleImgClick(${i})">
+                <div id="img-${i}" class="aspect-square bg-zinc-900 overflow-hidden relative active:scale-95 transition" onclick="handleImgClick(${i})">
                     <img src="${img.src.replace('/upload/', '/upload/w_400,c_fill/')}" class="w-full h-full object-cover">
                 </div>
             `).join('');
@@ -145,14 +145,6 @@
             const countEl = document.getElementById('selection-count');
             countEl.innerText = `${selectedPhotos.size} მონიშნული`;
             countEl.classList.toggle('hidden', !isSelectMode);
-        }
-
-        function selectAll() {
-            allPhotos.forEach((_, i) => {
-                selectedPhotos.add(i);
-                document.getElementById(`img-${i}`).classList.add('selected-img');
-            });
-            updateSelectionUI();
         }
 
         function handleImgClick(index) {
@@ -178,6 +170,31 @@
             if (!isSelectMode) renderGrid();
         }
 
+        function selectAll() {
+            allPhotos.forEach((_, i) => {
+                selectedPhotos.add(i);
+                document.getElementById(`img-${i}`).classList.add('selected-img');
+            });
+            updateSelectionUI();
+        }
+
+        // New Download Function
+        async function downloadSelected() {
+            const loader = document.getElementById('loading-progress');
+            loader.style.width = "10%";
+            const indexes = Array.from(selectedPhotos);
+            for (let i of indexes) {
+                const link = document.createElement('a');
+                link.href = allPhotos[i].src;
+                link.download = `photo_${i}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            loader.style.width = "100%";
+            setTimeout(() => loader.style.width = "0%", 1000);
+        }
+
         async function deleteSelected() {
             if (!confirm(`ნამდვილად გსურთ ${selectedPhotos.size} ფოტოს წაშლა?`)) return;
             const loader = document.getElementById('loading-progress');
@@ -190,7 +207,6 @@
         }
 
         async function executeMove(targetTag) {
-            if (targetTag === CURRENT_TAG) return;
             const loader = document.getElementById('loading-progress');
             loader.style.width = "20%";
             for (let i of Array.from(selectedPhotos)) {
@@ -218,27 +234,19 @@
         function renderAlbums() {
             const grid = document.getElementById('albums-grid');
             grid.innerHTML = albums.map(alb => `
-                <div class="relative group">
-                    <div onclick="loadGallery('${alb}'); switchTab('library')" class="bg-zinc-900 rounded-2xl aspect-square flex flex-col items-center justify-center border border-zinc-800">
+                <div class="relative">
+                    <div onclick="loadGallery('${alb}'); switchTab('library')" class="bg-zinc-900 rounded-2xl aspect-square flex flex-col items-center justify-center border border-zinc-800 active:scale-95 transition">
                         <span class="text-2xl mb-2">📂</span>
-                        <span class="text-[9px] font-bold uppercase tracking-widest">${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb}</span>
+                        <span class="text-[9px] font-bold uppercase tracking-widest px-2 text-center">${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb.replace(/_/g, ' ')}</span>
                     </div>
-                    <button onclick="deleteAlbum('${alb}')" class="absolute -top-1 -right-1 bg-red-600 w-6 h-6 rounded-full text-[10px] border-2 border-black">✕</button>
+                    <button onclick="deleteAlbum('${alb}')" class="absolute -top-1 -right-1 bg-zinc-800 w-6 h-6 rounded-full text-[10px] border border-black text-zinc-500">✕</button>
                 </div>
             `).join('');
         }
 
-        function deleteAlbum(name) {
-            if (name === 'shared_vault' || name === 'sastawe_main') return alert("მთავარ ალბომს ვერ წაშლი!");
-            if (confirm(`წავშალოთ ალბომი ${name}? (ფოტოები არ წაიშლება)`)) {
-                albums = albums.filter(a => a !== name);
-                localStorage.setItem('vault_albums', JSON.stringify(albums));
-                renderAlbums();
-            }
-        }
-
         function addNewAlbum() {
-            const n = prompt("ალბომის სახელი (ინგლისურად):");
+            // "მორიგი carpe diem" როგორც default მნიშვნელობა
+            const n = prompt("ალბომის სახელი:", "მორიგი carpe diem");
             if (n) {
                 const slug = n.toLowerCase().trim().replace(/\s+/g, '_');
                 if(!albums.includes(slug)) {
@@ -249,9 +257,22 @@
             }
         }
 
+        function deleteAlbum(name) {
+            if (name === 'shared_vault' || name === 'sastawe_main') return;
+            if (confirm(`წავშალოთ ალბომი?`)) {
+                albums = albums.filter(a => a !== name);
+                localStorage.setItem('vault_albums', JSON.stringify(albums));
+                renderAlbums();
+            }
+        }
+
         function switchTab(tab) {
             document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
             document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
+            document.getElementById('nav-lib').classList.toggle('text-white', tab === 'library');
+            document.getElementById('nav-lib').classList.toggle('text-zinc-600', tab !== 'library');
+            document.getElementById('nav-alb').classList.toggle('text-white', tab === 'albums');
+            document.getElementById('nav-alb').classList.toggle('text-zinc-600', tab !== 'albums');
             if(tab === 'albums') renderAlbums();
         }
 
@@ -267,20 +288,32 @@
             document.getElementById('viewer-slider').style.transform = `translateX(${-vIdx * window.innerWidth}px)`; 
         }
 
-        let sX = 0;
-        document.getElementById('viewer-slider').ontouchstart = e => sX = e.touches[0].clientX;
-        document.getElementById('viewer-slider').ontouchend = e => {
-            let d = e.changedTouches[0].clientX - sX;
-            if (Math.abs(d) > 50) {
-                if (d > 0 && vIdx > 0) vIdx--;
-                else if (d < 0 && vIdx < allPhotos.length - 1) vIdx++;
-                updateSlider();
+        // Fast Swipe Logic
+        let sX = 0, currX = 0;
+        const slider = document.getElementById('viewer-slider');
+        slider.ontouchstart = e => {
+            sX = e.touches[0].clientX;
+            slider.style.transition = 'none';
+        };
+        slider.ontouchmove = e => {
+            currX = e.touches[0].clientX - sX;
+            let offset = -vIdx * window.innerWidth + currX;
+            slider.style.transform = `translateX(${offset}px)`;
+        };
+        slider.ontouchend = e => {
+            slider.style.transition = 'transform 0.2s ease-out';
+            if (Math.abs(currX) > 60) {
+                if (currX > 0 && vIdx > 0) vIdx--;
+                else if (currX < 0 && vIdx < allPhotos.length - 1) vIdx++;
             }
-        }
+            updateSlider();
+            currX = 0;
+        };
 
         function openUploadWidget() {
             cloudinary.openUploadWidget({ 
-                cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET, tags: [CURRENT_TAG]
+                cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET, tags: [CURRENT_TAG],
+                clientAllowedFormats: ["jpg", "png", "jpeg", "heic"]
             }, (err, res) => { if (res?.event === "success") setTimeout(() => loadGallery(CURRENT_TAG), 1000); });
         }
     </script>
