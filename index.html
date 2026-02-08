@@ -35,16 +35,14 @@
             background: #111; 
             position: relative; 
         }
-        /* PhotoSwipe-ის სრულიად შავი ფონი */
-        .pswp {
-            --pswp-bg: #000000;
-        }
+        /* PhotoSwipe styling */
+        .pswp { --pswp-bg: #000000; }
     </style>
 </head>
 <body class="select-none">
 
     <div id="auth-screen" class="fixed inset-0 bg-black z-[200] flex flex-col items-center justify-center text-center p-6">
-        <h2 class="text-2xl font-bold mb-8 text-white tracking-widest uppercase">Vault</h2>
+        <h2 class="text-3xl font-black mb-8 text-white tracking-tighter italic uppercase">Ubuntu</h2>
         <input type="password" id="pin-input" autofocus placeholder="••••" class="w-40 text-center text-4xl bg-transparent border-b-2 border-zinc-700 text-white focus:outline-none focus:border-white mb-10 transition-colors">
         <button onclick="checkAuth()" class="bg-white text-black px-12 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
     </div>
@@ -58,7 +56,7 @@
 
         <main class="flex-grow">
             <div id="view-library" class="pb-32">
-                <div id="photo-grid" class="grid-view" id="gallery--sastawe"></div>
+                <div id="photo-grid" class="grid-view"></div>
             </div>
 
             <div id="view-albums" class="hidden p-4 pb-32">
@@ -125,18 +123,15 @@
                 a.href = img.src;
                 a.dataset.pswpWidth = img.w || 1200;
                 a.dataset.pswpHeight = img.h || 1600;
-                a.target = '_blank';
                 a.className = "aspect-square overflow-hidden bg-zinc-900 transition-opacity active:opacity-60";
                 a.innerHTML = `<img src="${img.src.replace('/upload/', '/upload/w_400,h_400,c_fill/')}" class="w-full h-full object-cover">`;
                 grid.appendChild(a);
             });
 
-            // PhotoSwipe-ის ინიციალიზაცია (აქ არის სვაიპის და ზუმის ლოგიკა)
             const lightbox = new PhotoSwipeLightbox({
                 gallery: '#photo-grid',
                 children: 'a',
                 pswpModule: PhotoSwipe,
-                // დამატებითი პარამეტრები მობილურისთვის
                 showHideAnimationType: 'zoom',
                 initialZoomLevel: 'fit',
                 secondaryZoomLevel: 2.5,
