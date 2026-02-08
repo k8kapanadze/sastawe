@@ -92,11 +92,12 @@
         const UPLOAD_PRESET = "sastawe";
         const PASS = "გიჟურად";
         
-        let CURRENT_TAG = "shared_vault";
+        // საწყისი თეგი ახლა არის "სასტაwe"
+        let CURRENT_TAG = "სასტაwe";
         let allPhotos = [];
         let selectedPhotos = new Set();
         let isSelectMode = false;
-        let albums = JSON.parse(localStorage.getItem('vault_albums')) || ["shared_vault", "party", "trip"];
+        let albums = JSON.parse(localStorage.getItem('vault_albums')) || ["სასტაwe", "party", "trip"];
 
         function checkAuth() {
             if(document.getElementById('pin-input').value === PASS) {
@@ -166,37 +167,31 @@
             if (!confirm(`ნამდვილად გსურთ ${selectedPhotos.size} ფოტოს წაშლა?`)) return;
             const loader = document.getElementById('loading-progress');
             loader.style.width = "30%";
-            
             for (let i of Array.from(selectedPhotos)) {
-                await fetch('/api/delete', {
-                    method: 'POST',
-                    body: JSON.stringify({ public_id: allPhotos[i].id })
-                });
+                await fetch('/api/delete', { method: 'POST', body: JSON.stringify({ public_id: allPhotos[i].id }) });
             }
             loader.style.width = "100%";
             location.reload();
         }
 
+        // --- ახალი გადატანის ლოგიკა (API/MOVE-ს მეშვეობით) ---
         async function executeMove(targetTag) {
             if (targetTag === CURRENT_TAG) return;
             const loader = document.getElementById('loading-progress');
-            loader.style.width = "10%";
+            loader.style.width = "20%";
             
-            const toMove = Array.from(selectedPhotos);
-            for (let i of toMove) {
-                const photo = allPhotos[i];
-                // 1. გადაწერა ახალი თეგით
-                const fd = new FormData();
-                fd.append('file', photo.src);
-                fd.append('upload_preset', UPLOAD_PRESET);
-                fd.append('tags', targetTag);
-                await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: fd });
-                
-                // 2. ძველის წაშლა API-თ
-                await fetch('/api/delete', { method: 'POST', body: JSON.stringify({ public_id: photo.id }) });
+            for (let i of Array.from(selectedPhotos)) {
+                await fetch('/api/move', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        public_id: allPhotos[i].id, 
+                        target_tag: targetTag,
+                        cloud_name: CLOUD_NAME 
+                    })
+                });
             }
             loader.style.width = "100%";
-            alert("გადატანა დასრულდა!");
+            alert("წარმატებით გადავიდა!");
             location.reload();
         }
 
@@ -226,7 +221,7 @@
         }
 
         function deleteAlbum(name) {
-            if (name === 'shared_vault') return alert("მთავარ ალბომს ვერ წაშლი!");
+            if (name === 'სასტაwe') return alert("მთავარ ალბომს ვერ წაშლი!");
             if (confirm(`წავშალოთ ალბომი ${name}? (ფოტოები არ წაიშლება)`)) {
                 albums = albums.filter(a => a !== name);
                 localStorage.setItem('vault_albums', JSON.stringify(albums));
@@ -249,14 +244,9 @@
         function switchTab(tab) {
             document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
             document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
-            document.getElementById('nav-lib').classList.toggle('text-white', tab === 'library');
-            document.getElementById('nav-lib').classList.toggle('text-zinc-600', tab !== 'library');
-            document.getElementById('nav-alb').classList.toggle('text-white', tab === 'albums');
-            document.getElementById('nav-alb').classList.toggle('text-zinc-600', tab !== 'albums');
             if(tab === 'albums') renderAlbums();
         }
 
-        // --- VIEWER ---
         let vIdx = 0;
         function openViewer(i) {
             vIdx = i;
@@ -269,8 +259,6 @@
             document.getElementById('viewer-slider').style.transform = `translateX(${-vIdx * window.innerWidth}px)`; 
         }
 
-        // Swipe logic
-        let sX = 0;
         document.getElementById('viewer-slider').ontouchstart = e => sX = e.touches[0].clientX;
         document.getElementById('viewer-slider').ontouchend = e => {
             let d = e.changedTouches[0].clientX - sX;
