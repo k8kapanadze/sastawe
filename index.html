@@ -17,9 +17,9 @@
             display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; 
         }
         #viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; touch-action: none; }
-        #viewer-slider { display: flex; height: 100%; transition: transform 0.3s cubic-bezier(0.15, 0.3, 0.25, 1); will-change: transform; }
-        .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .slide img { max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-drag: none; }
+        #viewer-slider { display: flex; height: 100%; transition: transform 0.3s cubic-bezier(0.15, 0.3, 0.25, 1); will-change: transform; width: 100%; }
+        .slide { min-width: 100vw; width: 100vw; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+        .slide img { max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-drag: none; pointer-events: none; }
         #move-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
         .loading-bar { height: 3px; background: #3b82f6; width: 0%; transition: width 0.3s; position: fixed; top: 0; left: 0; z-index: 9999; }
     </style>
@@ -46,9 +46,10 @@
 
     <div id="app-content" class="hidden h-screen flex flex-col">
         <header class="ios-blur p-5 flex justify-between items-center border-b border-zinc-900 sticky top-0 z-50">
-            <div>
+            <div onclick="logout()" class="active:opacity-50">
                 <h1 id="header-title" class="text-xl font-black italic uppercase tracking-tighter">სასტაWE</h1>
                 <p id="selection-count" class="hidden text-[10px] text-blue-500 font-bold uppercase mt-1">0 მონიშნული</p>
+                <p class="text-[8px] text-zinc-600 font-bold uppercase">გამოსვლა (LOGOUT)</p>
             </div>
             <div class="flex gap-4 items-center">
                 <button id="select-mode-btn" onclick="toggleSelectMode()" class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">მონიშვნა</button>
@@ -103,23 +104,36 @@
         let isSelectMode = false;
         let albums = JSON.parse(localStorage.getItem('vault_albums')) || ["shared_vault", "party", "trip"];
 
+        // Auth Logic
         function checkAutoLogin() {
-            if (sessionStorage.getItem('isAuth') === 'true') {
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('app-content').classList.remove('hidden');
-                loadGallery(CURRENT_TAG);
+            if (localStorage.getItem('isAuth') === 'true') {
+                showApp();
             }
         }
 
         function checkAuth() {
             if(document.getElementById('pin-input').value === PASS) {
-                sessionStorage.setItem('isAuth', 'true');
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('app-content').classList.remove('hidden');
-                loadGallery(CURRENT_TAG);
+                localStorage.setItem('isAuth', 'true');
+                showApp();
+            } else {
+                alert("არასწორია!");
             }
         }
 
+        function logout() {
+            if(confirm("გსურთ გასვლა?")) {
+                localStorage.removeItem('isAuth');
+                location.reload();
+            }
+        }
+
+        function showApp() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-content').classList.remove('hidden');
+            loadGallery(CURRENT_TAG);
+        }
+
+        // Gallery Logic
         async function loadGallery(tag) {
             CURRENT_TAG = tag;
             const displayTitle = (tag === "shared_vault" || tag === "sastawe_main") ? "სასტაWE" : tag.replace(/_/g, ' ');
@@ -178,61 +192,82 @@
             document.getElementById('selection-count').classList.remove('hidden');
         }
 
-        // გამოსწორებული გადმოწერის ფუნქცია
         async function downloadSelected() {
             const loader = document.getElementById('loading-progress');
             const items = Array.from(selectedPhotos);
             loader.style.width = "10%";
-            
             for (let i = 0; i < items.length; i++) {
                 const photo = allPhotos[items[i]];
-                const response = await fetch(photo.src);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
+                a.href = photo.src;
                 a.download = `sastawe_${photo.id}.jpg`;
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
-                
                 loader.style.width = `${((i + 1) / items.length) * 100}%`;
-                // მცირე დაყოვნება ბრაუზერისთვის
                 await new Promise(r => setTimeout(r, 400));
             }
             setTimeout(() => loader.style.width = "0%", 1000);
         }
 
-        async function deleteSelected() {
-            if (!confirm(`წავშალოთ ${selectedPhotos.size} ფოტო?`)) return;
-            for (let i of Array.from(selectedPhotos)) {
-                await fetch('/api/delete', { method: 'POST', body: JSON.stringify({ public_id: allPhotos[i].id }) });
-            }
-            loadGallery(CURRENT_TAG);
-            toggleSelectMode();
-        }
+        // Viewer Logic (Optimized for fast swiping)
+        let vIdx = 0;
+        let sX = 0, currX = 0;
+        const slider = document.getElementById('viewer-slider');
 
-        async function executeMove(targetTag) {
-            closeMoveModal();
-            for (let i of Array.from(selectedPhotos)) {
-                await fetch('/api/move', { method: 'POST', body: JSON.stringify({ public_id: allPhotos[i].id, target_tag: targetTag, cloud_name: CLOUD_NAME }) });
-            }
-            loadGallery(CURRENT_TAG);
-            toggleSelectMode();
-        }
-
-        function openMoveModal() {
-            const list = document.getElementById('move-albums-list');
-            list.innerHTML = albums.map(alb => `
-                <div onclick="executeMove('${alb}')" class="p-4 border-b border-zinc-800 active:bg-zinc-800 text-[11px] uppercase tracking-widest font-bold">
-                    ${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb.replace(/_/g, ' ')}
+        function openViewer(i) {
+            vIdx = i;
+            document.getElementById('viewer').style.display = 'block';
+            slider.innerHTML = allPhotos.map(p => `
+                <div class="slide">
+                    <img src="${p.src.replace('/upload/', '/upload/q_auto,f_auto,w_1200/')}" loading="lazy">
                 </div>
             `).join('');
-            document.getElementById('move-modal').style.display = 'flex';
+            updateSlider(false);
         }
 
-        function closeMoveModal() { document.getElementById('move-modal').style.display = 'none'; }
+        function closeViewer() { 
+            document.getElementById('viewer').style.display = 'none'; 
+            slider.innerHTML = ''; 
+        }
+
+        function updateSlider(animate = true) { 
+            slider.style.transition = animate ? 'transform 0.3s cubic-bezier(0.15, 0.3, 0.25, 1)' : 'none';
+            slider.style.transform = `translateX(${-vIdx * window.innerWidth}px)`; 
+        }
+
+        slider.addEventListener('touchstart', e => { 
+            sX = e.touches[0].clientX; 
+            slider.style.transition = 'none'; 
+        }, {passive: true});
+
+        slider.addEventListener('touchmove', e => {
+            currX = e.touches[0].clientX - sX;
+            // Prevent sliding past edges
+            if ((vIdx === 0 && currX > 0) || (vIdx === allPhotos.length - 1 && currX < 0)) {
+                currX /= 3; 
+            }
+            slider.style.transform = `translateX(${-vIdx * window.innerWidth + currX}px)`;
+        }, {passive: true});
+
+        slider.addEventListener('touchend', () => {
+            const threshold = window.innerWidth * 0.15; // 15% swipe to trigger change
+            if (Math.abs(currX) > threshold) {
+                if (currX > 0 && vIdx > 0) vIdx--;
+                else if (currX < 0 && vIdx < allPhotos.length - 1) vIdx++;
+            }
+            updateSlider(true);
+            currX = 0;
+        });
+
+        // Album & Upload Logic (same as before)
+        function switchTab(tab) {
+            document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
+            document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
+            document.getElementById('nav-lib').className = `flex-1 flex flex-col items-center gap-1 ${tab === 'library' ? 'text-white' : 'text-zinc-600'}`;
+            document.getElementById('nav-alb').className = `flex-1 flex flex-col items-center gap-1 ${tab === 'albums' ? 'text-white' : 'text-zinc-600'}`;
+            if(tab === 'albums') renderAlbums();
+        }
 
         function renderAlbums() {
             const grid = document.getElementById('albums-grid');
@@ -242,13 +277,28 @@
                         <span class="text-2xl mb-2">📂</span>
                         <span class="text-[9px] font-bold uppercase px-2 text-center">${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb.replace(/_/g, ' ')}</span>
                     </div>
-                    <button onclick="deleteAlbum('${alb}')" class="absolute -top-1 -right-1 bg-zinc-800 w-6 h-6 rounded-full text-[10px] border border-black text-zinc-500">✕</button>
                 </div>
             `).join('');
         }
 
+        function openUploadWidget() {
+            cloudinary.openUploadWidget({ cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET, tags: [CURRENT_TAG] }, 
+            (err, res) => { if (res?.event === "success") setTimeout(() => loadGallery(CURRENT_TAG), 1000); });
+        }
+        
+        function openMoveModal() {
+            const list = document.getElementById('move-albums-list');
+            list.innerHTML = albums.map(alb => `
+                <div onclick="executeMove('${alb}')" class="p-4 border-b border-zinc-800 active:bg-zinc-800 text-[11px] uppercase tracking-widest font-bold">
+                    ${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb.replace(/_/g, ' ')}
+                </div>
+            `).join('');
+            document.getElementById('move-modal').style.display = 'flex';
+        }
+        function closeMoveModal() { document.getElementById('move-modal').style.display = 'none'; }
+        
         function addNewAlbum() {
-            const n = prompt("ალბომის სახელი:", "");
+            const n = prompt("ალბომის სახელი:");
             if (n) {
                 const slug = n.toLowerCase().trim().replace(/\s+/g, '_');
                 if(!albums.includes(slug)) {
@@ -257,63 +307,6 @@
                     renderAlbums();
                 }
             }
-        }
-
-        function deleteAlbum(name) {
-            if (name === 'shared_vault' || name === 'sastawe_main') return;
-            if (confirm(`წავშალოთ ალბომი?`)) {
-                albums = albums.filter(a => a !== name);
-                localStorage.setItem('vault_albums', JSON.stringify(albums));
-                renderAlbums();
-            }
-        }
-
-        function switchTab(tab) {
-            document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
-            document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
-            document.getElementById('nav-lib').style.color = tab === 'library' ? '#fff' : '#52525b';
-            document.getElementById('nav-alb').style.color = tab === 'albums' ? '#fff' : '#52525b';
-            if(tab === 'albums') renderAlbums();
-        }
-
-        let vIdx = 0;
-        function openViewer(i) {
-            vIdx = i;
-            document.getElementById('viewer').style.display = 'block';
-            const slider = document.getElementById('viewer-slider');
-            slider.innerHTML = allPhotos.map(p => `
-                <div class="slide">
-                    <img src="${p.src.replace('/upload/', '/upload/q_auto,f_auto,w_1200/')}" loading="lazy">
-                </div>
-            `).join('');
-            updateSlider();
-        }
-        function closeViewer() { document.getElementById('viewer').style.display = 'none'; document.getElementById('viewer-slider').innerHTML = ''; }
-        function updateSlider() { 
-            document.getElementById('viewer-slider').style.transform = `translateX(${-vIdx * window.innerWidth}px)`; 
-        }
-
-        let sX = 0, currX = 0, moveX = 0;
-        const slider = document.getElementById('viewer-slider');
-        slider.addEventListener('touchstart', e => { sX = e.touches[0].clientX; slider.style.transition = 'none'; }, {passive: true});
-        slider.addEventListener('touchmove', e => {
-            moveX = e.touches[0].clientX;
-            currX = moveX - sX;
-            slider.style.transform = `translateX(${-vIdx * window.innerWidth + currX}px)`;
-        }, {passive: true});
-        slider.addEventListener('touchend', () => {
-            slider.style.transition = 'transform 0.3s cubic-bezier(0.15, 0.3, 0.25, 1)';
-            if (Math.abs(currX) > 50) {
-                if (currX > 0 && vIdx > 0) vIdx--;
-                else if (currX < 0 && vIdx < allPhotos.length - 1) vIdx++;
-            }
-            updateSlider();
-            currX = 0;
-        });
-
-        function openUploadWidget() {
-            cloudinary.openUploadWidget({ cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET, tags: [CURRENT_TAG] }, 
-            (err, res) => { if (res?.event === "success") setTimeout(() => loadGallery(CURRENT_TAG), 1000); });
         }
     </script>
 </body>
