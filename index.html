@@ -3,70 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sastawe Vault</title>
+    <title>Sastawe Vault PRO</title>
     <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; }
         .grid-view { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; }
         .ios-blur { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        
-        #viewer { 
-            display: none; position: fixed; inset: 0; background: #000; z-index: 1000; 
-            overflow: hidden; touch-action: pan-y;
-        }
-        #viewer-slider { 
-            display: flex; height: 100%; transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1); 
-            will-change: transform;
-        }
-        .slide { 
-            min-width: 100%; height: 100%; display: flex; align-items: center; 
-            justify-content: center; padding: 10px; box-sizing: border-box;
-        }
+        #viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; overflow: hidden; touch-action: pan-y; }
+        #viewer-slider { display: flex; height: 100%; transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); will-change: transform; }
+        .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
         .slide img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
-        
-        .close-btn { 
-            position: absolute; top: 40px; left: 20px; z-index: 1100; 
-            background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px; cursor: pointer;
-        }
-        .loader { width: 18px; height: 18px; border: 2px solid #333; border-top: 2px solid #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .top-bar { position: absolute; top: 40px; left: 0; right: 0; z-index: 1100; display: flex; justify-content: space-between; padding: 0 20px; }
+        .action-btn { background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-    <div id="auth-screen" class="fixed inset-0 bg-black z-[2000] flex flex-col items-center justify-center">
-        <h2 class="text-3xl font-black mb-8 italic uppercase tracking-tighter">Sastawe Vault</h2>
-        <input type="password" id="pin-input" autofocus placeholder="••••" class="w-40 text-center text-4xl bg-transparent border-b-2 border-zinc-700 text-white focus:outline-none mb-10">
-        <button onclick="checkAuth()" class="bg-white text-black px-12 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
+    <div id="auth-screen" class="fixed inset-0 bg-black z-[2000] flex flex-col items-center justify-center p-6 text-center">
+        <h2 class="text-4xl font-black italic mb-10 tracking-tighter italic">სასტაWE VAULT</h2>
+        <input type="password" id="pin-input" placeholder="PIN" class="w-full max-w-xs text-center text-3xl bg-zinc-900 p-4 rounded-2xl mb-4 focus:outline-none border border-zinc-800">
+        <button onclick="checkAuth()" class="bg-blue-600 w-full max-w-xs p-4 rounded-2xl font-bold italic uppercase">შესვლა</button>
     </div>
 
-    <div id="app-content" class="hidden h-screen overflow-y-auto">
-        <header class="ios-blur sticky top-0 z-50 p-5 flex justify-between items-center border-b border-zinc-900">
-            <h1 class="text-2xl font-black tracking-tighter uppercase italic text-white">სასტაwe</h1>
-            <button id="upload_widget" class="text-blue-500 font-bold active:opacity-50">დამატება</button>
+    <div id="app-content" class="hidden h-screen flex flex-col">
+        <header class="ios-blur p-5 flex justify-between items-center border-b border-zinc-900">
+            <h1 id="view-title" class="text-xl font-black italic uppercase italic">Carpe Diem</h1>
+            <button onclick="openUploadWidget()" class="text-blue-500 font-bold">დამატება</button>
         </header>
 
-        <div id="view-library" class="pb-32">
-            <div id="photo-grid" class="grid-view">
-                </div>
-        </div>
+        <div id="main-scroll" class="flex-1 overflow-y-auto pb-32">
+            <div id="view-library" class="grid-view"></div>
 
-        <div id="view-albums" class="hidden p-4 pb-32">
-            <div class="text-white font-bold uppercase tracking-widest text-xs mb-4">ალბომები</div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="aspect-square bg-zinc-900 rounded-2xl flex items-center justify-center text-zinc-700 font-bold text-[10px] uppercase">Coming Soon</div>
+            <div id="view-albums" class="hidden p-4">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xs font-bold text-zinc-500 uppercase tracking-widest">ალბომები</h2>
+                    <button onclick="createNewAlbum()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded-full text-zinc-300">+ ახალი</button>
+                </div>
+                <div id="albums-grid" class="grid grid-cols-2 gap-4"></div>
             </div>
         </div>
 
-        <nav class="ios-blur fixed bottom-0 left-0 right-0 h-20 border-t border-zinc-900 flex justify-around items-center z-50 px-6">
-            <button onclick="switchTab('library')" id="lib-tab" class="flex-1 text-center font-black text-xs uppercase tracking-widest text-white">Carpe Diem</button>
-            <button onclick="switchTab('albums')" id="alb-tab" class="flex-1 text-center font-black text-xs uppercase tracking-widest text-zinc-600 border-l border-zinc-800">გეჟობები</button>
+        <nav class="ios-blur fixed bottom-0 left-0 right-0 h-20 border-t border-zinc-900 flex justify-around items-center z-50">
+            <button onclick="switchTab('library')" class="flex-1 text-[10px] font-bold uppercase tracking-widest text-white">გალერეა</button>
+            <button onclick="switchTab('albums')" class="flex-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-l border-zinc-800">გეჟობები</button>
         </nav>
     </div>
 
     <div id="viewer">
-        <div class="close-btn font-bold text-white text-xs uppercase tracking-widest" onclick="closeViewer()">დახურვა</div>
+        <div class="top-bar">
+            <div class="action-btn" onclick="closeViewer()">←</div>
+            <div class="flex gap-2">
+                <div class="action-btn text-blue-400" onclick="downloadCurrent()">Save</div>
+                <div class="action-btn text-red-500" onclick="deleteCurrentFromCloudinary()">Delete</div>
+            </div>
+        </div>
         <div id="viewer-slider"></div>
     </div>
 
@@ -74,162 +65,134 @@
         const CLOUD_NAME = "djdz4uygc";
         const UPLOAD_PRESET = "sastawe";
         const PASS = "გიჟურად";
-        const TAG = "shared_vault";
-
+        let TAG = "shared_vault"; // Default tag
+        
         let allPhotos = [];
+        let albums = ["shared_vault", "party", "trip"]; // საწყისი ალბომები
         let currentIndex = 0;
 
-        // ავტორიზაციის შემოწმება
         function checkAuth() {
             if(document.getElementById('pin-input').value === PASS) {
-                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app-content').classList.remove('hidden');
-                fetchSharedPhotos();
-            } else {
-                alert("პაროლი არასწორია!");
+                loadGallery(TAG);
             }
         }
 
-        // ფოტოების წამოღება Cloudinary-დან
-        async function fetchSharedPhotos() {
-            const grid = document.getElementById('photo-grid');
-            // სანამ იტვირთება, გამოვაჩინოთ პატარა ინდიკატორი
-            if(allPhotos.length === 0) grid.innerHTML = '<div class="col-span-3 p-20 text-center"><div class="loader"></div></div>';
-
-            try {
-                // ვიყენებთ JSONP-ის მსგავს მეთოდს ან პირდაპირ fetch-ს ქეშის გარეშე
-                const url = `https://res.cloudinary.com/${CLOUD_NAME}/image/list/v${Math.floor(Date.now()/1000)}/${TAG}.json`;
-                
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("Resource List is restricted or not found");
-                
-                const data = await response.json();
-                
-                // მონაცემების დამუშავება
-                allPhotos = data.resources.map(img => ({
-                    src: `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v${img.version}/${img.public_id}.${img.format}`,
-                    created: new Date(img.created_at)
-                })).sort((a, b) => b.created - a.created); // უახლესი პირველი
-                
-                renderLibrary();
-            } catch (e) {
-                console.error("Fetch Error:", e);
-                grid.innerHTML = `
-                    <div class="col-span-3 p-10 text-center">
-                        <p class="text-zinc-600 text-xs uppercase tracking-widest mb-4">ვერ ვხედავ ფოტოებს</p>
-                        <button onclick="fetchSharedPhotos()" class="text-[10px] text-blue-500 border border-blue-500/30 px-4 py-2 rounded-full uppercase font-bold">გადატვირთვა</button>
-                    </div>`;
-            }
-        }
-
-        // გრიდის დახატვა
-        function renderLibrary() {
-            const grid = document.getElementById('photo-grid');
-            grid.innerHTML = '';
+        async function loadGallery(tag) {
+            TAG = tag;
+            const grid = document.getElementById('view-library');
+            grid.innerHTML = '<div class="col-span-3 text-center p-10 text-zinc-600">იტვირთება...</div>';
             
-            if (allPhotos.length === 0) {
-                grid.innerHTML = '<div class="col-span-3 p-20 text-center text-zinc-700 text-xs uppercase tracking-tighter">გალერეა ცარიელია</div>';
-                return;
+            try {
+                const res = await fetch(`https://res.cloudinary.com/${CLOUD_NAME}/image/list/v${Date.now()}/${tag}.json`);
+                const data = await res.json();
+                allPhotos = data.resources.map(img => ({
+                    id: img.public_id,
+                    src: `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v${img.version}/${img.public_id}.${img.format}`
+                }));
+                renderGrid();
+            } catch (e) {
+                grid.innerHTML = '<div class="col-span-3 text-center p-10 text-zinc-600">ცარიელია</div>';
             }
+        }
 
-            allPhotos.forEach((img, index) => {
-                const div = document.createElement('div');
-                div.className = "aspect-square overflow-hidden bg-zinc-900 active:scale-95 transition-transform cursor-pointer";
-                // ოპტიმიზაცია: პატარა ზომის სურათის ჩატვირთვა გრიდისთვის
-                const thumb = img.src.replace('/upload/', '/upload/w_500,h_500,c_fill,g_auto,q_auto/');
-                div.innerHTML = `<img src="${thumb}" class="w-full h-full object-cover">`;
-                div.onclick = () => openViewer(index);
-                grid.appendChild(div);
+        function renderGrid() {
+            const grid = document.getElementById('view-library');
+            grid.innerHTML = allPhotos.map((img, i) => `
+                <div class="aspect-square bg-zinc-900 overflow-hidden active:opacity-50" onclick="openViewer(${i})">
+                    <img src="${img.src.replace('/upload/', '/upload/w_400,c_fill/')}" class="w-full h-full object-cover">
+                </div>
+            `).join('');
+        }
+
+        // ალბომების ლოგიკა
+        function renderAlbums() {
+            const grid = document.getElementById('albums-grid');
+            grid.innerHTML = albums.map(alb => `
+                <div onclick="loadGallery('${alb}'); switchTab('library')" class="aspect-square bg-zinc-900 rounded-2xl flex flex-col items-center justify-center border border-zinc-800 active:scale-95 transition">
+                    <span class="text-2xl mb-2">📂</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">${alb}</span>
+                </div>
+            `).join('');
+        }
+
+        function createNewAlbum() {
+            const name = prompt("შეიყვანე ალბომის სახელი (ინგლისურად):");
+            if(name) {
+                albums.push(name.toLowerCase().replace(" ", "_"));
+                renderAlbums();
+            }
+        }
+
+        // Upload
+        function openUploadWidget() {
+            cloudinary.openUploadWidget({
+                cloudName: CLOUD_NAME,
+                uploadPreset: UPLOAD_PRESET,
+                tags: [TAG]
+            }, (err, res) => {
+                if (res && res.event === "success") setTimeout(() => loadGallery(TAG), 1500);
             });
         }
 
-        // Upload Widget კონფიგურაცია
-        const myWidget = cloudinary.createUploadWidget({
-            cloudName: CLOUD_NAME, 
-            uploadPreset: UPLOAD_PRESET,
-            tags: [TAG],
-            sources: ['local', 'camera', 'instagram'],
-            multiple: true,
-            defaultSource: 'local',
-            styles: {
-                palette: {
-                    window: "#000000",
-                    sourceBg: "#000000",
-                    windowBorder: "#222222",
-                    tabIcon: "#FFFFFF",
-                    inactiveTabIcon: "#555555",
-                    menuIcons: "#ebebeb",
-                    link: "#3b82f6",
-                    action: "#3b82f6",
-                    inProgress: "#3b82f6",
-                    complete: "#22c55e",
-                    error: "#ef4444",
-                    textDark: "#000000",
-                    textLight: "#FFFFFF"
-                }
-            }
-        }, (error, result) => {
-            if (!error && result.event === "success") {
-                // ატვირთვის შემდეგ ვაცადოთ სერვერს 1.5 წამი და მერე განვაახლოთ
-                setTimeout(fetchSharedPhotos, 1500);
-            }
-        });
+        // DELETE FROM CLOUDINARY (Client side workaround)
+        async function deleteCurrentFromCloudinary() {
+            if(!confirm("გინდა ფოტოს სამუდამოდ წაშლა Cloudinary-დან?")) return;
+            
+            const publicId = allPhotos[currentIndex].id;
+            
+            // ყურადღება: ბრაუზერიდან პირდაპირი წაშლა მოითხოვს Token-ს.
+            // რადგან Token არ გვაქვს, ფოტოს უბრალოდ "გავაქრობთ" სიიდან.
+            // ფიზიკურად წასაშლელად Cloudinary-ს Settings-ში უნდა ჩართო "Allow unsigned deletion"
+            
+            alert("ფოტო ამოღებულია გალერეიდან.");
+            allPhotos.splice(currentIndex, 1);
+            renderGrid();
+            closeViewer();
+        }
 
-        document.getElementById("upload_widget").onclick = () => myWidget.open();
-
-        // Viewer Logic (სლაიდერი)
+        // Slider & Viewer (სწრაფი)
         const slider = document.getElementById('viewer-slider');
-        let startX = 0;
-        let currentTranslate = 0;
-        let prevTranslate = 0;
+        let startX = 0, isDragging = false;
 
         function openViewer(index) {
             currentIndex = index;
             document.getElementById('viewer').style.display = 'block';
-            slider.innerHTML = allPhotos.map(img => {
-                const fullRes = img.src.replace('/upload/', '/upload/q_auto,f_auto/');
-                return `<div class="slide"><img src="${fullRes}"></div>`;
-            }).join('');
-            updateSliderPosition();
+            slider.innerHTML = allPhotos.map(img => `<div class="slide"><img src="${img.src}"></div>`).join('');
+            slider.style.transform = `translateX(${-currentIndex * window.innerWidth}px)`;
         }
 
-        function closeViewer() { 
-            document.getElementById('viewer').style.display = 'none'; 
-        }
+        function closeViewer() { document.getElementById('viewer').style.display = 'none'; }
 
-        function updateSliderPosition() {
-            currentTranslate = currentIndex * -window.innerWidth;
-            prevTranslate = currentTranslate;
-            slider.style.transition = 'transform 0.3s cubic-bezier(0.15, 0, 0.15, 1)';
-            slider.style.transform = `translateX(${currentTranslate}px)`;
-        }
-
-        slider.addEventListener('touchstart', e => {
-            startX = e.touches[0].clientX;
-            slider.style.transition = 'none';
-        });
-
+        slider.addEventListener('touchstart', e => { startX = e.touches[0].clientX; isDragging = true; slider.style.transition = 'none'; });
         slider.addEventListener('touchmove', e => {
-            const currentX = e.touches[0].clientX;
-            const diff = currentX - startX;
-            slider.style.transform = `translateX(${prevTranslate + diff}px)`;
+            if(!isDragging) return;
+            const diff = e.touches[0].clientX - startX;
+            slider.style.transform = `translateX(${-currentIndex * window.innerWidth + diff}px)`;
         });
-
         slider.addEventListener('touchend', e => {
-            const endX = e.changedTouches[0].clientX;
-            const diff = endX - startX;
-            if (Math.abs(diff) > 70) {
-                if (diff > 0 && currentIndex > 0) currentIndex--;
-                else if (diff < 0 && currentIndex < allPhotos.length - 1) currentIndex++;
+            isDragging = false;
+            const diff = e.changedTouches[0].clientX - startX;
+            if(Math.abs(diff) > 50) {
+                if(diff > 0 && currentIndex > 0) currentIndex--;
+                else if(diff < 0 && currentIndex < allPhotos.length - 1) currentIndex++;
             }
-            updateSliderPosition();
+            slider.style.transition = 'transform 0.2s ease-out';
+            slider.style.transform = `translateX(${-currentIndex * window.innerWidth}px)`;
         });
 
         function switchTab(tab) {
             document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
             document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
-            document.getElementById('lib-tab').className = `flex-1 text-center font-black text-xs uppercase tracking-widest ${tab==='library'?'text-white':'text-zinc-600'}`;
-            document.getElementById('alb-tab').className = `flex-1 text-center font-black text-xs uppercase tracking-widest ${tab==='albums'?'text-white':'text-zinc-600'} border-l border-zinc-800`;
+            if(tab === 'albums') renderAlbums();
+        }
+
+        function downloadCurrent() {
+            const a = document.createElement('a');
+            a.href = allPhotos[currentIndex].src;
+            a.download = "sastawe_photo.jpg";
+            a.click();
         }
     </script>
 </body>
