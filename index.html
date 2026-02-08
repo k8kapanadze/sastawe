@@ -105,15 +105,15 @@
         } else { alert("არასწორია!"); }
     }
 
-    const myWidget = cloudinary.createUploadWidget({
-        cloudName: CLOUD_NAME, 
-        uploadPreset: UPLOAD_PRESET
-    }, (error, result) => {
-        if (!error && result.event === "success") {
-            // ატვირთვის მერე 1.5 წამში განაახლებს სიას ყველასთვის
-            setTimeout(fetchSharedPhotos, 1500);
-        }
-    });
+    Const myWidget = cloudinary.createUploadWidget({
+    cloudName: CLOUD_NAME, 
+    uploadPreset: UPLOAD_PRESET,
+    tags: [TAG] // ⬅️ აი ეს აკლდა
+}, (error, result) => {
+    if (!error && result.event === "success") {
+        setTimeout(fetchSharedPhotos, 1500);
+    }
+});
     document.getElementById("upload_widget").onclick = () => myWidget.open();
 
     function renderLibrary() {
