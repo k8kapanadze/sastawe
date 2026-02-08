@@ -2,136 +2,154 @@
 <html lang="ka">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iCloud Clone - Private Vault</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Photo Vault Pro</title>
     <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <style>
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px; }
-        .aspect-square { aspect-ratio: 1 / 1; }
-        .selected { border: 4px solid #3b82f6; transform: scale(0.9); }
-        #auth-screen { position: fixed; inset: 0; background: white; z-index: 100; display: flex; align-items: center; justify-content: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .ios-blur { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .grid-view { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+        .album-card { aspect-ratio: 1/1; position: relative; border-radius: 12px; overflow: hidden; background: #f3f4f6; }
+        #full-viewer { display: none; position: fixed; inset: 0; background: black; z-index: 100; }
+        .tab-icon { font-size: 24px; }
     </style>
 </head>
-<body class="bg-white">
+<body class="bg-white text-black select-none">
 
-    <div id="auth-screen">
-        <div class="text-center">
-            <h2 class="text-2xl font-semibold mb-4">შეიყვანეთ PIN კოდი</h2>
-            <input type="password" id="pin-input" class="border-2 border-gray-300 rounded-lg p-3 text-center text-2xl tracking-widest w-40 focus:outline-none focus:border-blue-500">
-            <button onclick="checkPin()" class="block mt-4 mx-auto bg-blue-500 text-white px-6 py-2 rounded-full">შესვლა</button>
+    <div id="auth-screen" class="fixed inset-0 bg-white z-[200] flex flex-col items-center justify-center">
+        <div class="w-16 h-16 bg-blue-500 rounded-2xl mb-6 shadow-xl flex items-center justify-center">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
         </div>
+        <h2 class="text-xl font-bold mb-6">ჩაწერეთ პაროლი</h2>
+        <input type="password" id="pin-input" autofocus class="w-32 text-center text-3xl tracking-widest border-b-2 border-blue-500 focus:outline-none mb-8">
+        <button onclick="checkAuth()" class="bg-black text-white px-10 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
     </div>
 
-    <div id="main-content" class="hidden pb-20">
-        <header class="sticky top-0 bg-white/80 backdrop-blur-md z-10 p-4 border-b flex justify-between items-center">
-            <h1 class="text-xl font-bold">ბიბლიოთეკა</h1>
-            <div class="flex gap-2">
-                <button id="select-mode" class="text-blue-500 font-medium">მონიშვნა</button>
-                <button id="upload_widget" class="bg-blue-500 text-white p-2 rounded-full shadow-md">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                </button>
-            </div>
+    <div id="app-content" class="hidden">
+        
+        <header class="ios-blur sticky top-0 z-50 p-4 flex justify-between items-center border-b border-gray-100">
+            <h1 id="page-title" class="text-2xl font-extrabold tracking-tight">ბიბლიოთეკა</h1>
+            <button id="upload_widget" class="text-blue-500 font-bold text-lg">დამატება</button>
         </header>
 
-        <div id="action-bar" class="hidden fixed bottom-0 left-0 right-0 bg-gray-100 p-4 flex justify-around border-t z-20">
-            <button onclick="deleteSelected()" class="text-red-500 font-bold">წაშლა</button>
-            <button onclick="addToAlbum()" class="text-blue-500 font-bold">ალბომში დამატება</button>
+        <div id="view-library" class="pb-32">
+            <div id="photo-grid" class="grid-view"></div>
         </div>
 
-        <main class="p-1">
-            <div id="gallery" class="grid-container">
+        <div id="view-albums" class="hidden p-4 pb-32">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">ჩემი ალბომები</h2>
+                <button onclick="createNewAlbum()" class="text-blue-500">+ ახალი</button>
+            </div>
+            <div id="albums-list" class="grid grid-cols-2 gap-4">
                 </div>
-        </main>
+        </div>
+
+        <div id="full-viewer">
+            <button onclick="closeViewer()" class="absolute top-10 left-6 z-[110] text-white text-lg font-bold">დახურვა</button>
+            <div class="swiper mySwiper w-full h-full">
+                <div id="swiper-wrapper" class="swiper-wrapper"></div>
+            </div>
+        </div>
+
+        <nav class="ios-blur fixed bottom-0 left-0 right-0 h-20 border-t border-gray-200 flex justify-around items-center px-10 z-50">
+            <button onclick="switchTab('library')" class="flex flex-col items-center">
+                <span class="tab-icon">🖼️</span>
+                <span class="text-[10px] mt-1 font-bold">ბიბლიოთეკა</span>
+            </button>
+            <button onclick="switchTab('albums')" class="flex flex-col items-center">
+                <span class="tab-icon">📁</span>
+                <span class="text-[10px] mt-1 font-bold">ალბომები</span>
+            </button>
+        </nav>
     </div>
 
     <script>
         const CLOUD_NAME = "djdz4uygc";
         const UPLOAD_PRESET = "sastawe"
-        const ACCESS_PASSWORD = "გიჟურად"
+        const PASS = "გიჟურად";
 
-        let selectedPhotos = [];
-        let isSelectMode = false;
+        let allPhotos = JSON.parse(localStorage.getItem('vault_photos') || '[]');
+        let albums = JSON.parse(localStorage.getItem('vault_albums') || '{"ყველა": []}');
 
-        function checkPin() {
-    const val = document.getElementById('pin-input').value.trim(); // .trim() აშორებს შემთხვევით ჰარებს
-    const secret = "გიჟურად"; 
-    
-    if(val === secret) {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('main-content').classList.remove('hidden');
-        // პაროლს ვიმახსოვრებთ, რომ ყოველ რეფრეშზე არ გვკითხოს
-        localStorage.setItem('vault_auth', 'true');
-    } else {
-        alert("პაროლი არასწორია! სცადეთ თავიდან.");
-    }
-}
-
-// გვერდის ჩატვირთვისას ვამოწმებთ, უკვე შეყვანილი ხომ არ აქვს პაროლი
-window.onload = function() {
-    if(localStorage.getItem('vault_auth') === 'true') {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('main-content').classList.remove('hidden');
-    }
-}
+        function checkAuth() {
+            if(document.getElementById('pin-input').value === PASS) {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                renderLibrary();
+            } else { alert("არასწორია!"); }
+        }
 
         const myWidget = cloudinary.createUploadWidget({
-            cloudName: CLOUD_NAME, 
-            uploadPreset: UPLOAD_PRESET,
-            folder: "my_vault",
-            clientAllowedFormats: ["jpg", "png", "jpeg", "heic"],
-            context: {caption: "uploaded-from-web", uploadedAt: new Date().toISOString()}
-        }, (error, result) => { 
-            if (!error && result.event === "success") { 
-                createPhotoElement(result.info.secure_url, result.info.public_id);
+            cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET,
+            multiple: true, clientAllowedFormats: ["jpg", "png", "jpeg"]
+        }, (error, result) => {
+            if (!error && result.event === "success") {
+                const imgData = { url: result.info.secure_url, id: result.info.public_id };
+                allPhotos.push(imgData);
+                localStorage.setItem('vault_photos', JSON.stringify(allPhotos));
+                renderLibrary();
             }
         });
+        document.getElementById("upload_widget").onclick = () => myWidget.open();
 
-        document.getElementById("upload_widget").addEventListener("click", () => myWidget.open());
+        function renderLibrary() {
+            const grid = document.getElementById('photo-grid');
+            grid.innerHTML = '';
+            allPhotos.forEach((img, index) => {
+                const item = document.createElement('div');
+                item.className = "aspect-square bg-gray-100 cursor-pointer active:opacity-70 transition";
+                item.innerHTML = `<img src="${img.url.replace('/upload/', '/upload/w_400,h_400,c_fill/')}" class="w-full h-full object-cover">`;
+                item.onclick = () => openViewer(index);
+                grid.appendChild(item);
+            });
+        }
 
-        function createPhotoElement(url, id) {
-            const div = document.createElement('div');
-            div.className = "aspect-square bg-gray-200 overflow-hidden relative cursor-pointer";
-            div.dataset.id = id;
-            div.innerHTML = `<img src="${url.replace('/upload/', '/upload/w_300,h_300,c_fill/')}" class="w-full h-full object-cover">`;
+        // SWIPER VIEWER
+        let swiper;
+        function openViewer(startIndex) {
+            const wrapper = document.getElementById('swiper-wrapper');
+            wrapper.innerHTML = allPhotos.map(img => `
+                <div class="swiper-slide flex items-center justify-center">
+                    <img src="${img.url}" class="max-w-full max-h-full object-contain">
+                </div>
+            `).join('');
             
-            div.onclick = () => {
-                if(isSelectMode) {
-                    toggleSelect(div, id);
-                } else {
-                    window.open(url, '_blank'); // სრული ხარისხით ნახვა
-                }
-            };
-            document.getElementById('gallery').prepend(div);
+            document.getElementById('full-viewer').style.display = 'block';
+            swiper = new Swiper(".mySwiper", { initialSlide: startIndex });
         }
 
-        function toggleSelect(el, id) {
-            if(selectedPhotos.includes(id)) {
-                selectedPhotos = selectedPhotos.filter(p => p !== id);
-                el.classList.remove('selected');
-            } else {
-                selectedPhotos.push(id);
-                el.classList.add('selected');
+        function closeViewer() { document.getElementById('full-viewer').style.display = 'none'; }
+
+        // TABS
+        function switchTab(tab) {
+            document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
+            document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
+            document.getElementById('page-title').innerText = tab === 'library' ? 'ბიბლიოთეკა' : 'ალბომები';
+            if(tab === 'albums') renderAlbums();
+        }
+
+        function createNewAlbum() {
+            const name = prompt("ალბომის სახელი:");
+            if(name && !albums[name]) {
+                albums[name] = [];
+                localStorage.setItem('vault_albums', JSON.stringify(albums));
+                renderAlbums();
             }
         }
 
-        document.getElementById('select-mode').onclick = function() {
-            isSelectMode = !isSelectMode;
-            this.innerText = isSelectMode ? "გაუქმება" : "მონიშვნა";
-            document.getElementById('action-bar').classList.toggle('hidden', !isSelectMode);
-            if(!isSelectMode) {
-                document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-                selectedPhotos = [];
-            }
-        };
-
-        function deleteSelected() {
-            if(confirm(`ნამდვილად გსურთ ${selectedPhotos.length} ფოტოს წაშლა?`)) {
-                // აქ რეალურად უნდა გამოიძახო Cloudinary-ს წაშლის API, 
-                // მაგრამ უსაფრთხოებისთვის ამ ეტაპზე მხოლოდ ეკრანიდან ვაქრობთ.
-                alert("ფოტოები წაიშალა (საცავისთვის საჭიროა Backend API)");
-                location.reload();
-            }
+        function renderAlbums() {
+            const list = document.getElementById('albums-list');
+            list.innerHTML = Object.keys(albums).map(name => `
+                <div class="flex flex-col">
+                    <div class="album-card flex items-center justify-center text-3xl shadow-sm">📂</div>
+                    <span class="mt-2 font-bold text-sm">${name}</span>
+                    <span class="text-xs text-gray-400">${albums[name].length} ფოტო</span>
+                </div>
+            `).join('');
         }
     </script>
 </body>
