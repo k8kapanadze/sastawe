@@ -95,14 +95,11 @@
         const UPLOAD_PRESET = "sastawe";
         const PASS = "გიჟურად";
         
-        // ტექნიკური თეგი ინგლისურად
-        let CURRENT_TAG = "sastawe_main";
+        let CURRENT_TAG = "shared_vault"; // დავაბრუნე საწყისი, რომ ფოტოები გამოჩნდეს
         let allPhotos = [];
         let selectedPhotos = new Set();
         let isSelectMode = false;
-        
-        // ალბომების სია (ტექნიკური სახელებით)
-        let albums = JSON.parse(localStorage.getItem('vault_albums')) || ["sastawe_main", "party", "trip"];
+        let albums = JSON.parse(localStorage.getItem('vault_albums')) || ["shared_vault", "party", "trip"];
 
         function checkAuth() {
             if(document.getElementById('pin-input').value === PASS) {
@@ -114,21 +111,23 @@
 
         async function loadGallery(tag) {
             CURRENT_TAG = tag;
-            // ეკრანზე ვაჩვენოთ სასტაWE თუ მთავარია
-            document.getElementById('header-title').innerText = tag === "sastawe_main" ? "სასტაWE" : tag;
+            document.getElementById('header-title').innerText = (tag === "shared_vault" || tag === "sastawe_main") ? "სასტაWE" : tag;
             const grid = document.getElementById('view-library');
-            grid.innerHTML = '<div class="col-span-3 text-center p-20 text-zinc-600 animate-pulse text-[10px] uppercase">იტვირთება...</div>';
+            grid.innerHTML = '<div class="col-span-3 text-center p-20 text-zinc-600 animate-pulse text-[10px] uppercase tracking-widest">იტვირთება...</div>';
             
             try {
-                // ვამატებთ ქეშის საწინააღმდეგო პარამეტრს v=${Date.now()}
                 const res = await fetch(`https://res.cloudinary.com/${CLOUD_NAME}/image/list/v${Date.now()}/${tag}.json`);
+                if (!res.ok) throw new Error();
                 const data = await res.json();
                 allPhotos = data.resources.map(img => ({
                     id: img.public_id,
                     src: `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v${img.version}/${img.public_id}.${img.format}`
                 }));
                 renderGrid();
-            } catch (e) { 
+            } catch (e) {
+                // თუ ფოტოები ვერ იპოვა და ვართ მთავარ გვერდზე, ვცადოთ მეორე შესაძლო სახელით
+                if(tag === "shared_vault") { loadGallery("sastawe_main"); return; }
+                if(tag === "sastawe_main") { loadGallery("shared_vault"); return; }
                 grid.innerHTML = '<div class="col-span-3 text-center p-20 text-zinc-800 text-[10px] uppercase">ცარიელია</div>'; 
             }
         }
@@ -194,19 +193,13 @@
             if (targetTag === CURRENT_TAG) return;
             const loader = document.getElementById('loading-progress');
             loader.style.width = "20%";
-            
             for (let i of Array.from(selectedPhotos)) {
                 await fetch('/api/move', {
                     method: 'POST',
-                    body: JSON.stringify({ 
-                        public_id: allPhotos[i].id, 
-                        target_tag: targetTag,
-                        cloud_name: CLOUD_NAME 
-                    })
+                    body: JSON.stringify({ public_id: allPhotos[i].id, target_tag: targetTag, cloud_name: CLOUD_NAME })
                 });
             }
             loader.style.width = "100%";
-            alert("გადატანა დასრულდა!");
             location.reload();
         }
 
@@ -214,7 +207,7 @@
             const list = document.getElementById('move-albums-list');
             list.innerHTML = albums.map(alb => `
                 <div onclick="executeMove('${alb}')" class="p-4 border-b border-zinc-800 active:bg-zinc-800 text-[11px] uppercase tracking-widest font-bold">
-                    ${alb === "sastawe_main" ? "სასტაWE" : alb}
+                    ${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb}
                 </div>
             `).join('');
             document.getElementById('move-modal').style.display = 'flex';
@@ -228,7 +221,7 @@
                 <div class="relative group">
                     <div onclick="loadGallery('${alb}'); switchTab('library')" class="bg-zinc-900 rounded-2xl aspect-square flex flex-col items-center justify-center border border-zinc-800">
                         <span class="text-2xl mb-2">📂</span>
-                        <span class="text-[9px] font-bold uppercase tracking-widest">${alb === "sastawe_main" ? "სასტაWE" : alb}</span>
+                        <span class="text-[9px] font-bold uppercase tracking-widest">${(alb === "shared_vault" || alb === "sastawe_main") ? "სასტაWE" : alb}</span>
                     </div>
                     <button onclick="deleteAlbum('${alb}')" class="absolute -top-1 -right-1 bg-red-600 w-6 h-6 rounded-full text-[10px] border-2 border-black">✕</button>
                 </div>
@@ -236,7 +229,7 @@
         }
 
         function deleteAlbum(name) {
-            if (name === 'sastawe_main') return alert("მთავარ ალბომს ვერ წაშლი!");
+            if (name === 'shared_vault' || name === 'sastawe_main') return alert("მთავარ ალბომს ვერ წაშლი!");
             if (confirm(`წავშალოთ ალბომი ${name}? (ფოტოები არ წაიშლება)`)) {
                 albums = albums.filter(a => a !== name);
                 localStorage.setItem('vault_albums', JSON.stringify(albums));
