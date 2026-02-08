@@ -16,8 +16,9 @@
             background-color: #000000;
             color: #ffffff;
             margin: 0;
-            overflow-x: hidden;
+            overflow: hidden;
         }
+        #app-content { overflow-y: auto; height: 100vh; }
         .ios-blur { 
             background: rgba(0, 0, 0, 0.85); 
             backdrop-filter: blur(20px); 
@@ -35,7 +36,6 @@
             background: #111; 
             position: relative; 
         }
-        /* PhotoSwipe styling */
         .pswp { --pswp-bg: #000000; }
     </style>
 </head>
@@ -47,7 +47,7 @@
         <button onclick="checkAuth()" class="bg-white text-black px-12 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
     </div>
 
-    <div id="app-content" class="hidden min-h-screen flex flex-col">
+    <div id="app-content" class="hidden flex flex-col">
         
         <header class="ios-blur sticky top-0 z-50 p-5 flex justify-between items-center border-b border-zinc-900">
             <h1 id="page-title" class="text-2xl font-black tracking-tighter uppercase italic">სასტაwe</h1>
@@ -91,15 +91,16 @@
 
         window.checkAuth = () => {
             if(document.getElementById('pin-input').value === PASS) {
-                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app-content').classList.remove('hidden');
                 renderLibrary();
             } else { alert("არასწორია!"); }
         };
 
         const myWidget = cloudinary.createUploadWidget({
-            cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET,
-            multiple: true, clientAllowedFormats: ["jpg", "png", "jpeg"]
+            cloudName: CLOUD_NAME, 
+            uploadPreset: UPLOAD_PRESET,
+            multiple: true
         }, (error, result) => {
             if (!error && result.event === "success") {
                 const imgData = { 
@@ -121,21 +122,26 @@
             allPhotos.forEach((img) => {
                 const a = document.createElement('a');
                 a.href = img.src;
-                a.dataset.pswpWidth = img.w || 1200;
-                a.dataset.pswpHeight = img.h || 1600;
-                a.className = "aspect-square overflow-hidden bg-zinc-900 transition-opacity active:opacity-60";
-                a.innerHTML = `<img src="${img.src.replace('/upload/', '/upload/w_400,h_400,c_fill/')}" class="w-full h-full object-cover">`;
+                a.dataset.pswpWidth = img.w || 1000;
+                a.dataset.pswpHeight = img.h || 1500;
+                a.className = "pswp-item aspect-square overflow-hidden bg-zinc-900";
+                
+                // მობილურისთვის ოპტიმიზირებული Thumbnails
+                const thumb = img.src.replace('/upload/', '/upload/w_400,h_400,c_fill,q_auto/');
+                a.innerHTML = `<img src="${thumb}" class="w-full h-full object-cover">`;
+                
+                // ვუშლით სტანდარტულ გადასვლას
+                a.onclick = (e) => e.preventDefault();
                 grid.appendChild(a);
             });
 
+            // სინქრონული ინიციალიზაცია
             const lightbox = new PhotoSwipeLightbox({
                 gallery: '#photo-grid',
-                children: 'a',
+                children: 'a.pswp-item',
                 pswpModule: PhotoSwipe,
-                showHideAnimationType: 'zoom',
-                initialZoomLevel: 'fit',
-                secondaryZoomLevel: 2.5,
-                maxZoomLevel: 4,
+                bgOpacity: 1,
+                padding: { top: 20, bottom: 20, left: 0, right: 0 }
             });
             lightbox.init();
         }
@@ -145,8 +151,8 @@
             document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
             document.getElementById('page-title').innerText = tab === 'library' ? 'სასტაwe' : 'გეჟობები';
             
-            document.getElementById('lib-btn').className = tab === 'library' ? 'text-white font-black text-xs uppercase tracking-widest' : 'text-zinc-600 font-black text-xs uppercase tracking-widest';
-            document.getElementById('alb-btn').className = tab === 'albums' ? 'text-white font-black text-xs uppercase tracking-widest' : 'text-zinc-600 font-black text-xs uppercase tracking-widest';
+            document.getElementById('lib-btn').style.color = tab === 'library' ? '#ffffff' : '#52525b';
+            document.getElementById('alb-btn').style.color = tab === 'albums' ? '#ffffff' : '#52525b';
             
             if(tab === 'albums') renderAlbums();
         };
