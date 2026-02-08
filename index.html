@@ -9,9 +9,27 @@
     <style>
         body { font-family: -apple-system, sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; }
         .grid-view { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; }
-        .ios-blur { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        #viewer { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; touch-action: none; }
-        #viewer-img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.2s ease-out; }
+        .ios-blur { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        
+        /* სწრაფი Viewer-ის სტილები */
+        #viewer { 
+            display: none; position: fixed; inset: 0; background: #000; z-index: 1000; 
+            overflow: hidden; touch-action: pan-y;
+        }
+        #viewer-slider { 
+            display: flex; height: 100%; transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1); 
+            will-change: transform;
+        }
+        .slide { 
+            min-width: 100%; height: 100%; display: flex; align-items: center; 
+            justify-content: center; padding: 10px; box-sizing: border-box;
+        }
+        .slide img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+        
+        .close-btn { 
+            position: absolute; top: 40px; left: 20px; z-index: 1100; 
+            background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px;
+        }
     </style>
 </head>
 <body>
@@ -19,12 +37,12 @@
     <div id="auth-screen" class="fixed inset-0 bg-black z-[2000] flex flex-col items-center justify-center">
         <h2 class="text-3xl font-black mb-8 italic uppercase italic">Ubuntu</h2>
         <input type="password" id="pin-input" autofocus placeholder="••••" class="w-40 text-center text-4xl bg-transparent border-b-2 border-zinc-700 text-white focus:outline-none mb-10">
-        <button onclick="checkAuth()" class="bg-white text-black px-12 py-3 rounded-full font-bold">შესვლა</button>
+        <button onclick="checkAuth()" class="bg-white text-black px-12 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
     </div>
 
     <div id="app-content" class="hidden h-screen overflow-y-auto">
         <header class="ios-blur sticky top-0 z-50 p-5 flex justify-between items-center border-b border-zinc-900">
-            <h1 id="page-title" class="text-2xl font-black tracking-tighter uppercase italic">სასტაwe</h1>
+            <h1 class="text-2xl font-black tracking-tighter uppercase italic">სასტაwe</h1>
             <button id="upload_widget" class="text-blue-500 font-bold">დამატება</button>
         </header>
 
@@ -33,19 +51,19 @@
         </div>
 
         <div id="view-albums" class="hidden p-4 pb-32">
-            <div class="flex justify-between items-center mb-6 text-white font-bold">გეჟობები</div>
+            <div class="flex justify-between items-center mb-6 text-white font-bold uppercase tracking-widest text-xs">გეჟობები</div>
             <div id="albums-list" class="grid grid-cols-2 gap-4"></div>
         </div>
 
         <nav class="ios-blur fixed bottom-0 left-0 right-0 h-20 border-t border-zinc-900 flex justify-around items-center z-50 px-6">
-            <button onclick="switchTab('library')" class="flex-1 text-center font-black text-xs uppercase tracking-widest text-white">Carpe Diem</button>
-            <button onclick="switchTab('albums')" class="flex-1 text-center font-black text-xs uppercase tracking-widest text-zinc-600 border-l border-zinc-800">გეჟობები</button>
+            <button onclick="switchTab('library')" id="lib-tab" class="flex-1 text-center font-black text-xs uppercase tracking-widest text-white">Carpe Diem</button>
+            <button onclick="switchTab('albums')" id="alb-tab" class="flex-1 text-center font-black text-xs uppercase tracking-widest text-zinc-600 border-l border-zinc-800">გეჟობები</button>
         </nav>
     </div>
 
     <div id="viewer">
-        <button onclick="closeViewer()" class="absolute top-10 left-6 z-[1100] text-white text-lg font-bold">დახურვა</button>
-        <img id="viewer-img" src="">
+        <div class="close-btn font-bold" onclick="closeViewer()">დახურვა</div>
+        <div id="viewer-slider"></div>
     </div>
 
     <script>
@@ -65,8 +83,7 @@
         }
 
         const myWidget = cloudinary.createUploadWidget({
-            cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET,
-            multiple: true
+            cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET, multiple: true
         }, (error, result) => {
             if (!error && result.event === "success") {
                 allPhotos.unshift({ src: result.info.secure_url });
@@ -81,48 +98,67 @@
             grid.innerHTML = '';
             allPhotos.forEach((img, index) => {
                 const div = document.createElement('div');
-                div.className = "aspect-square overflow-hidden bg-zinc-900";
+                div.className = "aspect-square overflow-hidden bg-zinc-900 active:opacity-70 transition-opacity";
                 div.innerHTML = `<img src="${img.src.replace('/upload/', '/upload/w_400,h_400,c_fill/')}" class="w-full h-full object-cover">`;
                 div.onclick = () => openViewer(index);
                 grid.appendChild(div);
             });
         }
 
-        // --- VIEWER LOGIC (SWIPE) ---
+        // --- HIGH-SPEED VIEWER LOGIC ---
+        const slider = document.getElementById('viewer-slider');
         let startX = 0;
+        let currentTranslate = 0;
+        let prevTranslate = 0;
+
         function openViewer(index) {
             currentIndex = index;
-            document.getElementById('viewer-img').src = allPhotos[currentIndex].src;
-            document.getElementById('viewer').style.display = 'flex';
-            document.getElementById('viewer').style.alignItems = 'center';
+            document.getElementById('viewer').style.display = 'block';
+            
+            // ვამზადებთ სლაიდებს
+            slider.innerHTML = allPhotos.map(img => `<div class="slide"><img src="${img.src}"></div>`).join('');
+            
+            updateSliderPosition();
         }
 
         function closeViewer() { document.getElementById('viewer').style.display = 'none'; }
 
-        const viewer = document.getElementById('viewer');
-        viewer.addEventListener('touchstart', e => startX = e.touches[0].clientX);
-        viewer.addEventListener('touchend', e => {
-            let endX = e.changedTouches[0].clientX;
-            if (startX - endX > 50) nextImg(); // Swipe Left
-            if (endX - startX > 50) prevImg(); // Swipe Right
+        function updateSliderPosition() {
+            currentTranslate = currentIndex * -window.innerWidth;
+            prevTranslate = currentTranslate;
+            slider.style.transform = `translateX(${currentTranslate}px)`;
+        }
+
+        // Swipe ლოგიკა
+        slider.addEventListener('touchstart', e => {
+            startX = e.touches[0].clientX;
+            slider.style.transition = 'none'; // მოძრაობისას ანიმაცია გამოვრთოთ რომ თითს აჰყვეს
         });
 
-        function nextImg() {
-            if (currentIndex < allPhotos.length - 1) {
-                currentIndex++;
-                openViewer(currentIndex);
+        slider.addEventListener('touchmove', e => {
+            const currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            slider.style.transform = `translateX(${prevTranslate + diff}px)`;
+        });
+
+        slider.addEventListener('touchend', e => {
+            const endX = e.changedTouches[0].clientX;
+            const diff = endX - startX;
+
+            slider.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0.2, 1)';
+
+            if (Math.abs(diff) > 100) {
+                if (diff > 0 && currentIndex > 0) currentIndex--;
+                else if (diff < 0 && currentIndex < allPhotos.length - 1) currentIndex++;
             }
-        }
-        function prevImg() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                openViewer(currentIndex);
-            }
-        }
+            updateSliderPosition();
+        });
 
         function switchTab(tab) {
             document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
             document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
+            document.getElementById('lib-tab').className = `flex-1 text-center font-black text-xs uppercase tracking-widest ${tab==='library'?'text-white':'text-zinc-600'}`;
+            document.getElementById('alb-tab').className = `flex-1 text-center font-black text-xs uppercase tracking-widest ${tab==='albums'?'text-white':'text-zinc-600'} border-l border-zinc-800`;
         }
     </script>
 </body>
