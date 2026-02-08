@@ -54,14 +54,26 @@
         let isSelectMode = false;
 
         function checkPin() {
-            const val = document.getElementById('pin-input').value;
-            if(val === ACCESS_PASSWORD) {
-                document.getElementById('auth-screen').classList.add('hidden');
-                document.getElementById('main-content').classList.remove('hidden');
-            } else {
-                alert("არასწორია!");
-            }
-        }
+    const val = document.getElementById('pin-input').value.trim(); // .trim() აშორებს შემთხვევით ჰარებს
+    const secret = "გიჟურად"; 
+    
+    if(val === secret) {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-content').classList.remove('hidden');
+        // პაროლს ვიმახსოვრებთ, რომ ყოველ რეფრეშზე არ გვკითხოს
+        localStorage.setItem('vault_auth', 'true');
+    } else {
+        alert("პაროლი არასწორია! სცადეთ თავიდან.");
+    }
+}
+
+// გვერდის ჩატვირთვისას ვამოწმებთ, უკვე შეყვანილი ხომ არ აქვს პაროლი
+window.onload = function() {
+    if(localStorage.getItem('vault_auth') === 'true') {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-content').classList.remove('hidden');
+    }
+}
 
         const myWidget = cloudinary.createUploadWidget({
             cloudName: CLOUD_NAME, 
