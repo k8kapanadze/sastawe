@@ -3,32 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Photo Vault Pro</title>
+    <title>Sastawe Vault</title>
     <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/5.4.2/photoswipe.min.css">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
-        .ios-blur { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        .grid-view { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
-        .album-card { aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; background: #f3f4f6; position: relative; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            background-color: #000000; /* შავი ფონი */
+            color: #ffffff;
+        }
+        .ios-blur { 
+            background: rgba(10, 10, 10, 0.8); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+        }
+        .grid-view { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; }
+        .album-card { 
+            aspect-ratio: 1/1; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            background: #1a1a1a; 
+            position: relative; 
+        }
+        /* PhotoSwipe-ის შავი სტილი */
+        .pswp { --pswp-bg: #000000; }
     </style>
 </head>
-<body class="bg-white text-black select-none">
+<body class="select-none">
 
-    <div id="auth-screen" class="fixed inset-0 bg-white z-[200] flex flex-col items-center justify-center">
-        <div class="w-16 h-16 bg-blue-500 rounded-2xl mb-6 shadow-xl flex items-center justify-center text-white text-3xl font-bold">P</div>
-        <h2 class="text-xl font-bold mb-6">ჩაწერეთ პაროლი</h2>
-        <input type="password" id="pin-input" autofocus class="w-32 text-center text-3xl tracking-widest border-b-2 border-blue-500 focus:outline-none mb-8">
-        <button onclick="checkAuth()" class="bg-black text-white px-10 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
+    <div id="auth-screen" class="fixed inset-0 bg-black z-[200] flex flex-col items-center justify-center">
+        <div class="w-16 h-16 bg-zinc-800 rounded-2xl mb-6 shadow-xl flex items-center justify-center text-white text-3xl font-bold">S</div>
+        <h2 class="text-xl font-bold mb-6 text-white">შეიყვანეთ პაროლი</h2>
+        <input type="password" id="pin-input" autofocus class="w-32 text-center text-3xl tracking-widest bg-transparent border-b-2 border-white text-white focus:outline-none mb-8">
+        <button onclick="checkAuth()" class="bg-white text-black px-10 py-3 rounded-full font-bold active:scale-95 transition">შესვლა</button>
     </div>
 
     <div id="app-content" class="hidden min-h-screen flex flex-col">
         
-        <header class="ios-blur sticky top-0 z-50 p-4 flex justify-between items-center border-b border-gray-100">
+        <header class="ios-blur sticky top-0 z-50 p-4 flex justify-between items-center border-b border-zinc-900">
             <div class="flex items-center gap-3">
-                <img id="profile-img" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover border border-gray-200">
-                <h1 id="page-title" class="text-2xl font-extrabold tracking-tight">ბიბლიოთეკა</h1>
+                <img id="profile-img" src="" class="w-10 h-10 rounded-full object-cover border border-zinc-800">
+                <h1 id="page-title" class="text-2xl font-extrabold tracking-tight">სასტაwe</h1>
             </div>
             <button id="upload_widget" class="text-blue-500 font-bold text-lg">დამატება</button>
         </header>
@@ -40,19 +57,19 @@
 
             <div id="view-albums" class="hidden p-4 pb-32">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold">ჩემი ალბომები</h2>
-                    <button onclick="createNewAlbum()" class="text-blue-500 font-bold">+ ახალი</button>
+                    <h2 class="text-xl font-bold text-white">ჩემი ალბომები</h2>
+                    <button onclick="createNewAlbum()" class="text-blue-400 font-bold">+ ახალი</button>
                 </div>
                 <div id="albums-list" class="grid grid-cols-2 gap-4"></div>
             </div>
         </main>
 
-        <nav class="ios-blur fixed bottom-0 left-0 right-0 h-20 border-t border-gray-200 flex justify-around items-center z-50">
+        <nav class="ios-blur fixed bottom-0 left-0 right-0 h-20 border-t border-zinc-900 flex justify-around items-center z-50 px-6">
             <button onclick="switchTab('library')" class="flex flex-col items-center flex-1">
-                <span id="lib-btn" class="text-blue-500 font-bold text-sm">ბიბლიოთეკა</span>
+                <span id="lib-btn" class="text-white font-bold text-sm tracking-wide">Carpe Diem</span>
             </button>
             <button onclick="switchTab('albums')" class="flex flex-col items-center flex-1">
-                <span id="alb-btn" class="text-gray-400 font-bold text-sm">ალბომები</span>
+                <span id="alb-btn" class="text-zinc-500 font-bold text-sm tracking-wide">გეჟობები</span>
             </button>
         </nav>
     </div>
@@ -67,24 +84,21 @@
         let allPhotos = JSON.parse(localStorage.getItem('vault_photos') || '[]');
         let albums = JSON.parse(localStorage.getItem('vault_albums') || '{"ყველა": []}');
 
-        // ავტორიზაცია
         window.checkAuth = () => {
             if(document.getElementById('pin-input').value === PASS) {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
                 renderLibrary();
                 updateProfileImg();
-            } else { alert("არასწორია!"); }
+            } else { alert("პაროლი არასწორია!"); }
         };
 
-        // პროფილის ფოტოს განახლება
         function updateProfileImg() {
             if(allPhotos.length > 0) {
-                document.getElementById('profile-img').src = allPhotos[allPhotos.length-1].url;
+                document.getElementById('profile-img').src = allPhotos[0].src;
             }
         }
 
-        // ატვირთვა
         const myWidget = cloudinary.createUploadWidget({
             cloudName: CLOUD_NAME, uploadPreset: UPLOAD_PRESET,
             multiple: true, clientAllowedFormats: ["jpg", "png", "jpeg"]
@@ -93,8 +107,7 @@
                 const imgData = { 
                     src: result.info.secure_url, 
                     w: result.info.width, 
-                    h: result.info.height,
-                    url: result.info.secure_url 
+                    h: result.info.height
                 };
                 allPhotos.unshift(imgData);
                 localStorage.setItem('vault_photos', JSON.stringify(allPhotos));
@@ -104,7 +117,6 @@
         });
         document.getElementById("upload_widget").onclick = () => myWidget.open();
 
-        // ბიბლიოთეკის რენდერი
         function renderLibrary() {
             const grid = document.getElementById('photo-grid');
             grid.innerHTML = '';
@@ -113,12 +125,11 @@
                 a.href = img.src;
                 a.dataset.pswpWidth = img.w;
                 a.dataset.pswpHeight = img.h;
-                a.className = "aspect-square bg-gray-100 overflow-hidden";
+                a.className = "aspect-square overflow-hidden bg-zinc-900";
                 a.innerHTML = `<img src="${img.src.replace('/upload/', '/upload/w_400,h_400,c_fill/')}" class="w-full h-full object-cover">`;
                 grid.appendChild(a);
             });
 
-            // ინიციალიზაცია PhotoSwipe
             const lightbox = new PhotoSwipeLightbox({
                 gallery: '#photo-grid',
                 children: 'a',
@@ -127,14 +138,13 @@
             lightbox.init();
         }
 
-        // ტაბების გადართვა
         window.switchTab = (tab) => {
             document.getElementById('view-library').classList.toggle('hidden', tab !== 'library');
             document.getElementById('view-albums').classList.toggle('hidden', tab !== 'albums');
-            document.getElementById('page-title').innerText = tab === 'library' ? 'ბიბლიოთეკა' : 'ალბომები';
+            document.getElementById('page-title').innerText = tab === 'library' ? 'სასტაwe' : 'გეჟობები';
             
-            document.getElementById('lib-btn').className = tab === 'library' ? 'text-blue-500 font-bold text-sm' : 'text-gray-400 font-bold text-sm';
-            document.getElementById('alb-btn').className = tab === 'albums' ? 'text-blue-500 font-bold text-sm' : 'text-gray-400 font-bold text-sm';
+            document.getElementById('lib-btn').className = tab === 'library' ? 'text-white font-bold text-sm' : 'text-zinc-500 font-bold text-sm';
+            document.getElementById('alb-btn').className = tab === 'albums' ? 'text-white font-bold text-sm' : 'text-zinc-500 font-bold text-sm';
             
             if(tab === 'albums') renderAlbums();
         };
@@ -153,13 +163,13 @@
             list.innerHTML = Object.keys(albums).map(name => {
                 const cover = albums[name].length > 0 
                     ? `<img src="${albums[name][0].src}" class="w-full h-full object-cover">`
-                    : `<div class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300 font-bold">ცარიელი</div>`;
+                    : `<div class="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-700 font-bold text-xs uppercase">ცარიელი</div>`;
                 
                 return `
                     <div class="flex flex-col">
-                        <div class="album-card shadow-sm border border-gray-100">${cover}</div>
-                        <span class="mt-2 font-bold text-sm">${name}</span>
-                        <span class="text-xs text-gray-400">${albums[name].length} ფოტო</span>
+                        <div class="album-card shadow-lg border border-zinc-900">${cover}</div>
+                        <span class="mt-2 font-bold text-sm text-white">${name}</span>
+                        <span class="text-xs text-zinc-500">${albums[name].length} ფოტო</span>
                     </div>
                 `;
             }).join('');
